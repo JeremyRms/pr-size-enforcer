@@ -1,0 +1,27 @@
+# GitHub App manifest for pr-size-enforcer
+# This file defines the permissions and settings for the GitHub App
+
+name: PR Size Enforcer
+description: Automatically closes pull requests that exceed a configurable size threshold
+url: https://github.com/JeremyRms/pr-size-enforcer
+author: Jeremy Lamit
+
+# Default permissions for the app
+permissions:
+  # Required to read PR files and metadata
+  pull_requests: write
+  # Required to post comments
+  issues: write
+  # Required to read repository content
+  contents: read
+
+# Events the app subscribes to
+events:
+  - pull_request
+
+# App installation settings
+public: false
+redirect_url: https://pr-size-enforcer.onrender.com/
+
+# Webhook settings
+webhook_active: true 
