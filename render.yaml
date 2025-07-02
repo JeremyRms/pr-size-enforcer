@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: pr-size-enforcer
+    runtime: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    healthCheckPath: "/probot"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ID
+        sync: false
+      - key: PRIVATE_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: LOC_THRESHOLD
+        value: "500" 
