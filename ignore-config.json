@@ -1,0 +1,25 @@
+{
+  "max_loc": 500,
+  "ignored_suffixes": [
+    ".lock",
+    ".snap",
+    ".min.js",
+    ".min.css",
+    ".map",
+    ".d.ts"
+  ],
+  "ignored_files": [
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "Cargo.lock",
+    "poetry.lock"
+  ],
+  "ignored_patterns": [
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/*.generated.*",
+    "**/node_modules/**"
+  ]
+}
