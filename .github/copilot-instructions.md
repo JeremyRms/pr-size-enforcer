@@ -1,6 +1,6 @@
-## Contribution Guidelines
+## 🤖 LLM Contribution Guidelines
 
-These rules must be followed to ensure code is **easy to review**, **safe to merge**, and **ready for CI/CD pipelines**.
+These rules must be followed to ensure generated code is **easy to review**, **safe to merge**, and **ready for CI/CD pipelines**.
 
 ---
 
