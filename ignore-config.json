@@ -16,10 +16,11 @@
     "poetry.lock"
   ],
   "ignored_patterns": [
-    "**/dist/**",
-    "**/build/**",
-    "**/coverage/**",
-    "**/*.generated.*",
-    "**/node_modules/**"
+    "**/*.lock",
+    "**/*.snap",
+    "**/*.min.js",
+    "**/*.min.css",
+    "**/*.map",
+    "**/*.d.ts"
   ]
 }

@@ -1,0 +1,181 @@
+## 🔧 GitHub App: Auto-Close Large PRs (with Ignore Rules)
+
+---
+
+### 🚀 Objective
+
+Build a GitHub App that:
+
+* Monitors open PRs across all org repositories.
+* Calculates total changed lines (additions + deletions), ignoring specified files.
+* If LOC exceeds a configurable threshold (e.g. 500 LOC), closes the PR and posts a comment.
+
+---
+
+## 🧩 Architecture Overview
+
+* **Framework**: [Probot](https://probot.github.io/) (Node.js)
+* **Triggers**: `pull_request.opened`, `pull_request.synchronize`
+* **Hosting**: [Render.com](https://render.com/)
+* **Config**:
+
+  * Threshold and ignored file suffixes loaded from JSON or `.env`
+  * GitHub App credentials managed as environment variables
+
+---
+
+## 📁 File Structure
+
+```
+auto-close-large-pr/
+├── .env.example
+├── app.yml                # GitHub App manifest
+├── index.js               # Probot app logic
+├── ignore-config.json     # Customizable ignore rules
+├── package.json
+├── render.yaml            # Render.com deployment config
+└── README.md
+```
+
+---
+
+## ⚙️ Environment Variables
+
+Define these in **Render.com → Environment tab**:
+
+| Key              | Description                  |
+| ---------------- | ---------------------------- |
+| `APP_ID`         | GitHub App ID                |
+| `PRIVATE_KEY`    | PEM-format private key       |
+| `WEBHOOK_SECRET` | GitHub webhook secret        |
+| `LOC_THRESHOLD`  | Max LOC threshold (e.g. 500) |
+
+---
+
+## 📤 Hosting on Render.com
+
+### 🪄 Step-by-Step Deployment
+
+1. Push the code to a GitHub repo.
+2. Go to [render.com](https://render.com) → **New Web Service**.
+3. Connect the repo and fill out:
+
+   * **Build Command**: `npm install`
+   * **Start Command**: `npm start`
+4. Add environment variables from `.env.example`.
+5. Render will assign a URL like: `https://auto-close-large-pr.onrender.com/`
+6. In your GitHub App settings, set **Webhook URL** to that Render domain.
+
+---
+
+## 📦 `render.yaml` (for infrastructure-as-code)
+
+```yaml
+services:
+  - type: web
+    name: auto-close-large-pr
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    envVars:
+      - key: APP_ID
+        value: "your-app-id"
+      - key: PRIVATE_KEY
+        value: |-
+          -----BEGIN RSA PRIVATE KEY-----
+          YOUR-PRIVATE-KEY-HERE
+          -----END RSA PRIVATE KEY-----
+      - key: WEBHOOK_SECRET
+        value: "your-webhook-secret"
+      - key: LOC_THRESHOLD
+        value: "500"
+```
+
+> ⚠️ Note: For multiline `PRIVATE_KEY`, Render handles `|-` YAML blocks properly.
+
+---
+
+## 🧠 Core Logic (`index.js`)
+
+```js
+const fs = require("fs");
+const { Probot } = require("probot");
+
+const config = JSON.parse(fs.readFileSync("./ignore-config.json", "utf8"));
+const maxLoc = parseInt(process.env.LOC_THRESHOLD || config.max_loc || "500");
+
+module.exports = (app) => {
+  app.on(["pull_request.opened", "pull_request.synchronize"], async (context) => {
+    const pr = context.payload.pull_request;
+    const repo = context.payload.repository;
+
+    const files = await context.octokit.paginate(
+      context.octokit.pulls.listFiles,
+      {
+        owner: repo.owner.login,
+        repo: repo.name,
+        pull_number: pr.number,
+        per_page: 100,
+      }
+    );
+
+    const loc = files.reduce((sum, f) => {
+      const ignored = config.ignored_suffixes.some((suffix) =>
+        f.filename.endsWith(suffix)
+      );
+      return ignored ? sum : sum + f.additions + f.deletions;
+    }, 0);
+
+    if (loc > maxLoc) {
+      await context.octokit.issues.createComment({
+        owner: repo.owner.login,
+        repo: repo.name,
+        issue_number: pr.number,
+        body: `🚫 This PR exceeds the allowed size of ${maxLoc} LOC (actual: ${loc}). Please split it into smaller parts.`,
+      });
+
+      await context.octokit.pulls.update({
+        owner: repo.owner.login,
+        repo: repo.name,
+        pull_number: pr.number,
+        state: "closed",
+      });
+    }
+  });
+};
+```
+
+---
+
+## 🧪 Testing Plan
+
+* Install the app on a test repository.
+* Create PRs with:
+
+  * Over 500 LOC → should auto-close
+  * Only ignored files (`.snap`, `yarn.lock`) → should stay open
+* Watch logs in Render dashboard for issues
+
+---
+
+## 📦 Future Features
+
+| Feature                                   | Status |
+| ----------------------------------------- | ------ |
+| Ignore globs (e.g., `**/*.lock`)          | ❌      |
+| Allow label override (`no-auto-close`)    | ❌      |
+| Allow config via `.github/auto-close.yml` | ❌      |
+| Slack/Discord notifications               | ❌      |
+
+---
+
+## ✅ Summary
+
+| Item            | Stack                                        |
+| --------------- | -------------------------------------------- |
+| Runtime         | Node.js + [Probot](https://probot.github.io) |
+| Hosting         | [Render.com](https://render.com) (Free Tier) |
+| Trigger         | GitHub Webhook: PR events                    |
+| Security        | GitHub App + Webhook Secret                  |
+| Deployment Time | \~5 minutes                                  |
