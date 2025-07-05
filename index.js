@@ -1,14 +1,31 @@
 const fs = require('fs');
 const { Probot } = require('probot');
 const micromatch = require('micromatch');
+const yaml = require('js-yaml');
+const path = require('path');
 
 const config = JSON.parse(fs.readFileSync('./ignore-config.json', 'utf8'));
-const maxLoc = parseInt(process.env.LOC_THRESHOLD || config.max_loc || '500');
+
+function loadConfigFromYAML(repoPath) {
+    try {
+        const yamlPath = path.join(repoPath, '.github', 'auto-close.yml');
+        if (fs.existsSync(yamlPath)) {
+            const yamlContent = fs.readFileSync(yamlPath, 'utf8');
+            return yaml.load(yamlContent);
+        }
+    } catch (error) {
+        console.error('Error loading YAML config:', error);
+    }
+    return null;
+}
 
 module.exports = (app) => {
     app.on(['pull_request.opened', 'pull_request.synchronize'], async (context) => {
         const pr = context.payload.pull_request;
         const repo = context.payload.repository;
+
+        const repoConfig = loadConfigFromYAML(repo.full_name) || config;
+        const maxLoc = parseInt(process.env.LOC_THRESHOLD || repoConfig.max_loc || '500');
 
         const files = await context.octokit.paginate(
             context.octokit.pulls.listFiles,
@@ -21,9 +38,9 @@ module.exports = (app) => {
         );
 
         const loc = files.reduce((sum, f) => {
-            const ignored = config.ignored_suffixes.some((suffix) =>
+            const ignored = repoConfig.ignored_suffixes.some((suffix) =>
                 f.filename.endsWith(suffix)
-            ) || config.ignored_patterns.some((pattern) =>
+            ) || repoConfig.ignored_patterns.some((pattern) =>
                 micromatch.isMatch(f.filename, pattern)
             );
             return ignored ? sum : sum + f.additions + f.deletions;

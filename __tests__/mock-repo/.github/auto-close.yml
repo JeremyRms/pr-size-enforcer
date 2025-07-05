@@ -1,0 +1,5 @@
+max_loc: 300
+ignored_suffixes:
+  - .test.js
+ignored_patterns:
+  - '**/test/**' 
