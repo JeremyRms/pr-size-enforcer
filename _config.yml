@@ -1,0 +1,12 @@
+theme: jekyll-theme-minimal
+
+# Site settings
+title: PR Size Enforcer
+description: Automatically close pull requests that exceed a configurable size threshold.
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "https://<your-username>.github.io/<repository-name>" # the base hostname & protocol for your site
+
+# Author settings
+author:
+  name: Jeremy Lamit
+  email: your-email@example.com 
