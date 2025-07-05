@@ -29,6 +29,14 @@ module.exports = (app) => {
             return ignored ? sum : sum + f.additions + f.deletions;
         }, 0);
 
+        const labels = pr.labels.map(label => label.name);
+        const hasNoAutoCloseLabel = labels.includes('no-auto-close');
+
+        if (hasNoAutoCloseLabel) {
+            console.log(`PR #${pr.number} has 'no-auto-close' label. Skipping size check.`);
+            return;
+        }
+
         if (loc > maxLoc) {
             await context.octokit.issues.createComment({
                 owner: repo.owner.login,
