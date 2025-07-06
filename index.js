@@ -1,39 +1,44 @@
-const fs = require('fs');
-const { Probot } = require('probot');
 const micromatch = require('micromatch');
-const yaml = require('js-yaml');
-const path = require('path');
+const { ProbotOctokit } = require('probot');
+const octokit = new ProbotOctokit();
 
-const config = JSON.parse(fs.readFileSync('./ignore-config.json', 'utf8'));
-
-function loadConfigFromYAML(repoPath) {
-    try {
-        const yamlPath = path.join(repoPath, '.github', 'auto-close.yml');
-        if (fs.existsSync(yamlPath)) {
-            const yamlContent = fs.readFileSync(yamlPath, 'utf8');
-            return yaml.load(yamlContent);
-        }
-    } catch (error) {
-        console.error('Error loading YAML config:', error);
-    }
-    return null;
+const maxLoc = parseInt(process.env.LOC_THRESHOLD, 10);
+if (isNaN(maxLoc)) {
+    console.error('Error: LOC_THRESHOLD is not set or is not a valid number. LOC_THRESHOLD:', process.env.LOC_THRESHOLD);
+} else {
+    console.log('maxLoc', maxLoc);
 }
 
-module.exports = (app) => {
-    app.on(['pull_request.opened', 'pull_request.synchronize'], async (context) => {
-        const pr = context.payload.pull_request;
-        const repo = context.payload.repository;
+// Use octokit's request hooks to log the actual URLs being called
+octokit.hook.before('request', async (options) => {
+    console.log(`Request URL: ${options.method} ${options.url}`);
+});
 
-        const repoConfig = loadConfigFromYAML(repo.full_name) || config;
-        const maxLoc = parseInt(process.env.LOC_THRESHOLD || repoConfig.max_loc || '500');
+/**
+ * @param {import('probot').Probot} app
+ */
+module.exports = (app) => {
+    app.onAny(async (context) => {
+        context.log.info({ event: context.name, action: context.payload.action });
+    });
+
+    app.onError(async (error) => {
+        app.log.error(error);
+    });
+
+    app.on(['pull_request.opened', 'pull_request.synchronize'], async (context) => {
+        const { owner, name } = context.payload.repository;
+        const pr = context.payload.pull_request;
+
+        console.log(`Fetching files for PR #${pr.number} from repo ${owner.login}/${name}`);
 
         const files = await context.octokit.paginate(
             context.octokit.pulls.listFiles,
             {
-                owner: repo.owner.login,
-                repo: repo.name,
+                owner: owner.login,
+                repo: name,
                 pull_number: pr.number,
-                per_page: 100,
+                per_page: 10,
             }
         );
 
@@ -55,16 +60,18 @@ module.exports = (app) => {
         }
 
         if (loc > maxLoc) {
+            console.log(`Posting comment to PR #${pr.number} in repo ${owner.login}/${name}`);
             await context.octokit.issues.createComment({
-                owner: repo.owner.login,
-                repo: repo.name,
+                owner: owner.login,
+                repo: name,
                 issue_number: pr.number,
                 body: `🚫 This PR exceeds the allowed size of ${maxLoc} LOC (actual: ${loc}). Please split it into smaller parts.`,
             });
 
+            console.log(`Closing PR #${pr.number} in repo ${owner.login}/${name}`);
             await context.octokit.pulls.update({
-                owner: repo.owner.login,
-                repo: repo.name,
+                owner: owner.login,
+                repo: name,
                 pull_number: pr.number,
                 state: 'closed',
             });
