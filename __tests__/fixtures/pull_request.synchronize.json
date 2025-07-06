@@ -1,0 +1,23 @@
+{
+  "action": "synchronize",
+  "number": 1,
+  "pull_request": {
+    "number": 1,
+    "state": "open",
+    "title": "Update README",
+    "body": "This is a test pull request",
+    "user": {
+      "login": "octocat"
+    },
+    "labels": [],
+    "additions": 200,
+    "deletions": 0
+  },
+  "repository": {
+    "id": 123456,
+    "name": "test-repo",
+    "owner": {
+      "login": "owner"
+    }
+  }
+}
