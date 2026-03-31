@@ -1,110 +1,29 @@
 ## Contribution Guidelines
 
-These rules must be followed to ensure code is **easy to review**, **safe to merge**, and **ready for CI/CD pipelines**.
+Keep this project aligned with the actual product: a GitHub App that publishes a required PR check instead of mutating pull requests directly.
 
----
+### Product Constraints
 
-### 📏 1. Pull Request Size
+* The app must evaluate pull requests on `opened`, `reopened`, `ready_for_review`, `synchronize`, `labeled`, and `unlabeled`.
+* Enforcement happens through a GitHub check run. Do not auto-close PRs.
+* Repository owners must be able to tune thresholds, languages, bypass labels, and ignored files through `.github/pr-size-enforcer.yml`.
 
-* **🚫 PRs must not exceed 500 lines changed** (additions + deletions).
-* Break into multiple PRs if needed.
-* Files in `*.lock`, `*.snap`, `yarn.lock`, `package-lock.json` are **excluded from the count**.
+### Engineering Rules
 
----
+* Keep the default ignore list conservative and additive. Repo config should extend it, not replace it silently.
+* Preserve backward compatibility for existing config fields such as `max_loc`, `ignored_suffixes`, `ignored_files`, `ignored_patterns`, and `no-auto-close`.
+* Add tests for every behavior change in counting logic, config loading, or check-run output.
 
-### 🎯 2. Linter & Formatter
+### Verification
 
-* Use **[ESLint](https://eslint.org/)** with the **Airbnb config**.
-* Run `npm run lint` before pushing.
+Run these before you consider work complete:
 
 ```bash
-# install
-npm install eslint eslint-config-airbnb-base eslint-plugin-import --save-dev
+npm test
+```
 
-# run
+If you touch linting or formatting, also run:
+
+```bash
 npm run lint
 ```
-
-* **Code must be auto-formatted** using [Prettier](https://prettier.io/).
-
----
-
-### 🧪 3. Testing Rules
-
-* All business logic must be covered by **unit tests** using [Jest](https://jestjs.io/).
-* Add **integration tests** if PR affects app behavior or APIs.
-* Add tests in `__tests__/` or next to the source files.
-
-✅ Always include:
-
-```bash
-npm run test
-```
-
----
-
-### 📈 4. Code Coverage
-
-* Minimum **80% coverage** required on new code.
-* Coverage reports must be visible in PR.
-* Add `jest.config.js` with:
-
-```js
-module.exports = {
-  collectCoverage: true,
-  coverageThreshold: {
-    global: {
-      branches: 80,
-      functions: 80,
-      lines: 80,
-      statements: 80
-    }
-  }
-}
-```
-
----
-
-### 📝 5. Conventional Commits
-
-All commits must follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
-
-```
-<type>(<scope>): <short description>
-```
-
-Examples:
-
-```bash
-feat(pr-check): add threshold logic for LOC check
-fix(webhook): handle malformed PR payloads gracefully
-chore(ci): add render.yaml for deployment
-```
-
-Use `feat`, `fix`, `chore`, `docs`, `test`, `refactor`, etc.
-
----
-
-### 🔖 6. Git Tagging (Releases)
-
-* Tag all stable PRs after merge using **semantic versioning**:
-
-```bash
-git tag -a v1.0.0 -m "Initial release"
-git push origin v1.0.0
-```
-
-* Use `vX.Y.Z` format only.
-
----
-
-### ✅ Summary Checklist
-
-Before pushing code, **you must ensure**:
-
-* [ ] PR changes ≤ 500 LOC (excluding ignored files)
-* [ ] Lint passes (`npm run lint`)
-* [ ] Tests exist for all logic
-* [ ] Code coverage ≥ 80%
-* [ ] Commit messages follow Conventional Commits
-* [ ] Tagged appropriately if publishing
