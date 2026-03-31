@@ -6,6 +6,9 @@
     "state": "open",
     "title": "Update README",
     "body": "This is a test pull request",
+    "head": {
+      "sha": "small123"
+    },
     "user": {
       "login": "octocat"
     },

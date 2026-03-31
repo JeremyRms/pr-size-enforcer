@@ -1,29 +1,48 @@
-const fs = require('fs');
-const path = require('path');
-const micromatch = require('micromatch');
+import { normalizeConfig } from '../config.js';
+import { analyzePullRequestFiles } from '../pullRequestSize.js';
 
-const configPath = path.join(__dirname, '..', 'ignore-config.json');
-const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-
-const testFiles = [
-    { filename: 'src/file1.js', additions: 10, deletions: 5 },
-    { filename: 'dist/file2.min.js', additions: 20, deletions: 10 },
-    { filename: 'build/file3.lock', additions: 15, deletions: 5 },
-    { filename: 'src/file4.snap', additions: 5, deletions: 5 },
-];
-
-const calculateLOC = (files) => {
-    return files.reduce((sum, f) => {
-        const ignored = config.ignored_suffixes.some((suffix) =>
-            f.filename.endsWith(suffix)
-        ) || config.ignored_patterns.some((pattern) =>
-            micromatch.isMatch(f.filename, pattern)
+describe('Ignore Logic Tests', () => {
+    test('should ignore files based on suffixes and glob patterns', () => {
+        const config = normalizeConfig();
+        const analysis = analyzePullRequestFiles(
+            [
+                { filename: 'src/file1.js', additions: 10, deletions: 5 },
+                { filename: 'dist/file2.min.js', additions: 20, deletions: 10 },
+                { filename: 'build/file3.lock', additions: 15, deletions: 5 },
+                { filename: 'src/file4.snap', additions: 5, deletions: 5 },
+            ],
+            config,
         );
-        return ignored ? sum : sum + f.additions + f.deletions;
-    }, 0);
-};
 
-test('should ignore files based on glob patterns', () => {
-    const loc = calculateLOC(testFiles);
-    expect(loc).toBe(15); // Only the first file should be counted
-}); 
+        expect(analysis.changedLines).toBe(15);
+        expect(analysis.ignoredFiles).toHaveLength(3);
+    });
+
+    test('should count only configured languages when only_languages is set', () => {
+        const config = normalizeConfig({
+            only_languages: ['javascript', 'typescript'],
+        });
+        const analysis = analyzePullRequestFiles(
+            [
+                { filename: 'src/file1.js', additions: 10, deletions: 5 },
+                { filename: 'docs/readme.md', additions: 20, deletions: 10 },
+                { filename: 'pkg/main.go', additions: 15, deletions: 5 },
+            ],
+            config,
+        );
+
+        expect(analysis.changedLines).toBe(15);
+        expect(analysis.ignoredFiles).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    filename: 'docs/readme.md',
+                    reason: 'language not counted',
+                }),
+                expect.objectContaining({
+                    filename: 'pkg/main.go',
+                    reason: 'language not counted',
+                }),
+            ]),
+        );
+    });
+});

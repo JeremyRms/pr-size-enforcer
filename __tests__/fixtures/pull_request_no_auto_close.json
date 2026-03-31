@@ -4,14 +4,17 @@
   "pull_request": {
     "number": 1,
     "state": "open",
-    "title": "Update README",
-    "body": "This is a test pull request",
+    "title": "Bypassed PR",
+    "body": "This PR is explicitly bypassed",
+    "head": {
+      "sha": "skip123"
+    },
     "user": {
       "login": "octocat"
     },
     "labels": [
       {
-        "name": "no-auto-close"
+        "name": "pr-size:ignore"
       }
     ],
     "additions": 600,
