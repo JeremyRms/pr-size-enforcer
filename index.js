@@ -1,23 +1,69 @@
-const micromatch = require('micromatch');
-const { ProbotOctokit } = require('probot');
-const octokit = new ProbotOctokit();
+import { loadRepoConfig } from './config.js';
+import { evaluatePullRequest } from './pullRequestSize.js';
 
-const maxLoc = parseInt(process.env.LOC_THRESHOLD, 10);
-if (isNaN(maxLoc)) {
-    console.error('Error: LOC_THRESHOLD is not set or is not a valid number. LOC_THRESHOLD:', process.env.LOC_THRESHOLD);
-} else {
-    console.log('maxLoc', maxLoc);
+export const PULL_REQUEST_EVENTS = [
+    'pull_request.opened',
+    'pull_request.reopened',
+    'pull_request.ready_for_review',
+    'pull_request.synchronize',
+    'pull_request.labeled',
+    'pull_request.unlabeled',
+];
+
+export async function handlePullRequest(context) {
+    const owner = context.payload.repository.owner.login;
+    const repo = context.payload.repository.name;
+    const pullRequest = context.payload.pull_request;
+    const headSha = pullRequest.head?.sha;
+
+    if (!headSha) {
+        context.log.warn(
+            { pullRequestNumber: pullRequest.number },
+            'Skipping PR size check because the head SHA is missing.',
+        );
+        return;
+    }
+
+    const config = await loadRepoConfig(context, { owner, repo, ref: headSha });
+
+    const files = await context.octokit.paginate(
+        context.octokit.pulls.listFiles,
+        {
+            owner,
+            repo,
+            pull_number: pullRequest.number,
+            per_page: 100,
+        },
+    );
+
+    const labels = (pullRequest.labels || []).map(({ name }) => name);
+    const evaluation = evaluatePullRequest({ config, files, labels });
+
+    await context.octokit.checks.create({
+        owner,
+        repo,
+        name: config.checkName,
+        head_sha: headSha,
+        status: 'completed',
+        conclusion: evaluation.conclusion,
+        output: evaluation.output,
+    });
+
+    context.log.info(
+        {
+            pullRequestNumber: pullRequest.number,
+            changedLines: evaluation.analysis.changedLines,
+            maxChangedLines: config.maxChangedLines,
+            conclusion: evaluation.conclusion,
+        },
+        'Completed PR size check.',
+    );
 }
-
-// Use octokit's request hooks to log the actual URLs being called
-octokit.hook.before('request', async (options) => {
-    console.log(`Request URL: ${options.method} ${options.url}`);
-});
 
 /**
  * @param {import('probot').Probot} app
  */
-module.exports = (app) => {
+export default (app) => {
     app.onAny(async (context) => {
         context.log.info({ event: context.name, action: context.payload.action });
     });
@@ -26,55 +72,5 @@ module.exports = (app) => {
         app.log.error(error);
     });
 
-    app.on(['pull_request.opened', 'pull_request.synchronize'], async (context) => {
-        const { owner, name } = context.payload.repository;
-        const pr = context.payload.pull_request;
-
-        console.log(`Fetching files for PR #${pr.number} from repo ${owner.login}/${name}`);
-
-        const files = await context.octokit.paginate(
-            context.octokit.pulls.listFiles,
-            {
-                owner: owner.login,
-                repo: name,
-                pull_number: pr.number,
-                per_page: 10,
-            }
-        );
-
-        const loc = files.reduce((sum, f) => {
-            const ignored = repoConfig.ignored_suffixes.some((suffix) =>
-                f.filename.endsWith(suffix)
-            ) || repoConfig.ignored_patterns.some((pattern) =>
-                micromatch.isMatch(f.filename, pattern)
-            );
-            return ignored ? sum : sum + f.additions + f.deletions;
-        }, 0);
-
-        const labels = pr.labels.map(label => label.name);
-        const hasNoAutoCloseLabel = labels.includes('no-auto-close');
-
-        if (hasNoAutoCloseLabel) {
-            console.log(`PR #${pr.number} has 'no-auto-close' label. Skipping size check.`);
-            return;
-        }
-
-        if (loc > maxLoc) {
-            console.log(`Posting comment to PR #${pr.number} in repo ${owner.login}/${name}`);
-            await context.octokit.issues.createComment({
-                owner: owner.login,
-                repo: name,
-                issue_number: pr.number,
-                body: `🚫 This PR exceeds the allowed size of ${maxLoc} LOC (actual: ${loc}). Please split it into smaller parts.`,
-            });
-
-            console.log(`Closing PR #${pr.number} in repo ${owner.login}/${name}`);
-            await context.octokit.pulls.update({
-                owner: owner.login,
-                repo: name,
-                pull_number: pr.number,
-                state: 'closed',
-            });
-        }
-    });
-}; 
+    app.on(PULL_REQUEST_EVENTS, handlePullRequest);
+};

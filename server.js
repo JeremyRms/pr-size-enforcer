@@ -1,15 +1,14 @@
-require('dotenv').config();
+import 'dotenv/config';
+import fs from 'fs';
+import http from 'http';
+import { Probot, createNodeMiddleware } from 'probot';
+import appFn from './index.js';
 
 const environment = process.env.NODE_ENV || 'development';
 
 if (environment === 'development') {
     console.log('Running in development mode');
 }
-
-const fs = require('fs');
-const http = require('http');
-const { Probot, createNodeMiddleware } = require('probot');
-const appFn = require('./index');
 
 const privateKey = fs.readFileSync(process.env.PRIVATE_KEY_PATH, 'utf8');
 

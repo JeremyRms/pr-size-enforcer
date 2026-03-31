@@ -1,5 +1,6 @@
-const crypto = require('crypto');
-const dotenv = require('dotenv');
+import crypto from 'crypto';
+import dotenv from 'dotenv';
+
 dotenv.config();
 
 function generateSignature(payload) {
@@ -13,4 +14,4 @@ function generateSignature(payload) {
         .digest('hex')}`;
 }
 
-module.exports = { generateSignature }; 
+export { generateSignature };
