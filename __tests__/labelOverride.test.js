@@ -1,30 +1,16 @@
-const fs = require('fs');
-const path = require('path');
-const micromatch = require('micromatch');
+import { DEFAULT_CONFIG } from '../config.js';
+import { hasBypassLabel } from '../pullRequestSize.js';
 
-const configPath = path.join(__dirname, '..', 'ignore-config.json');
-const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+describe('Bypass Label Tests', () => {
+    test('should skip enforcement when a configured bypass label is present', () => {
+        expect(
+            hasBypassLabel(['needs-review', 'pr-size:ignore'], DEFAULT_CONFIG.bypassLabels),
+        ).toBe(true);
+    });
 
-const testPR = {
-    number: 1,
-    labels: [{ name: 'no-auto-close' }],
-    additions: 600,
-    deletions: 100,
-};
-
-const calculateLOC = (pr) => {
-    const loc = pr.additions + pr.deletions;
-    const labels = pr.labels.map(label => label.name);
-    const hasNoAutoCloseLabel = labels.includes('no-auto-close');
-
-    if (hasNoAutoCloseLabel) {
-        return 'skip';
-    }
-
-    return loc;
-};
-
-test('should skip size check if no-auto-close label is present', () => {
-    const result = calculateLOC(testPR);
-    expect(result).toBe('skip');
-}); 
+    test('should not skip enforcement when no bypass label is present', () => {
+        expect(
+            hasBypassLabel(['needs-review', 'backend'], DEFAULT_CONFIG.bypassLabels),
+        ).toBe(false);
+    });
+});

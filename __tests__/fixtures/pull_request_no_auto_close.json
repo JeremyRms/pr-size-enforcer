@@ -1,0 +1,30 @@
+{
+  "action": "opened",
+  "number": 1,
+  "pull_request": {
+    "number": 1,
+    "state": "open",
+    "title": "Bypassed PR",
+    "body": "This PR is explicitly bypassed",
+    "head": {
+      "sha": "skip123"
+    },
+    "user": {
+      "login": "octocat"
+    },
+    "labels": [
+      {
+        "name": "pr-size:ignore"
+      }
+    ],
+    "additions": 600,
+    "deletions": 0
+  },
+  "repository": {
+    "id": 123456,
+    "name": "test-repo",
+    "owner": {
+      "login": "owner"
+    }
+  }
+}
